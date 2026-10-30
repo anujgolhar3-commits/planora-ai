@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Planora · Schedule Intelligence & AI Agent</title>
+  <script>
+    // Client-side authentication & Google Calendar permission guard
+    (async function checkClientAuth() {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (!res.ok) {
+          localStorage.removeItem('planora_auth_user');
+          window.location.replace('login.html');
+          return;
+        }
+        const data = await res.json();
+        if (!data || !data.authenticated || !data.user || !data.user.calendarGranted) {
+          localStorage.removeItem('planora_auth_user');
+          window.location.replace('login.html');
+          return;
+        }
+        localStorage.setItem('planora_auth_user', JSON.stringify(data.user));
+      } catch (e) {
+        if (!localStorage.getItem('planora_auth_user')) {
+          window.location.replace('login.html');
+        }
+      }
+    })();
+  </script>
+
+  <!-- High Contrast Minimalist Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app-layout">
+
+  <!-- ============================================================
+       SIDEBAR NAVIGATION & MOBILE BACKDROP
+       ============================================================ -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="PlanoraUI.closeMobileSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div>
+      <div class="sidebar-header">
+        <a href="index.html" class="brand-logo-wrap">
+          <div class="brand-glyph">P</div>
+          <div class="brand-text-block">
+            <span class="brand-name">PLANORA</span>
+            <span class="brand-tagline">Intelligence v2.4</span>
+          </div>
+        </a>
+        <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Hide Sidebar" onclick="PlanoraUI.toggleSidebar()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Core Engine</div>
+        <button class="nav-item active" data-view="overview">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          </span>
+          <span class="nav-label">Overview & Stream</span>
+        </button>
+        <button class="nav-item" data-view="ai">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </span>
+          <span class="nav-label">Planora AI Co-Pilot</span>
+        </button>
+        <button class="nav-item" data-view="tasks">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </span>
+          <span class="nav-label">Daily Tasks</span>
+        </button>
+        <button class="nav-item" data-view="deadlines">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <span class="nav-label">Protected Deadlines</span>
+        </button>
+        <button class="nav-item" data-view="calendar">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </span>
+          <span class="nav-label">Weekly Matrix</span>
+        </button>
+        <button class="nav-item" data-view="monthly">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+          </span>
+          <span class="nav-label">Monthly Planner</span>
+        </button>
+        <button class="nav-item" data-view="analytics">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </span>
+          <span class="nav-label">Circadian Analytics</span>
+        </button>
+
+        <div class="nav-section-label" style="margin-top: 14px;">Automation</div>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </span>
+          <span class="nav-label">Autopilot Rules</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-profile-card">
+        <div class="user-avatar-mini" id="userAvatar">
+          U
+          <span class="google-badge-dot">G</span>
+        </div>
+        <div class="user-info-text">
+          <span class="user-name-label" id="userName">Workspace User</span>
+          <span class="user-email-label" id="userEmail">user@planora.ai</span>
+        </div>
+      </div>
+
+      <div class="sidebar-actions-row">
+        <button class="btn-sidebar-action" id="themeToggleBtn" title="Toggle Theme">
+          <span>Theme</span>
+        </button>
+        <button class="btn-sidebar-action" onclick="PlanoraStore.signOut();" title="Logout">
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN CONTENT CONTAINER
+       ============================================================ -->
+  <main class="main-content">
+
+    <!-- Top Search & Actions Bar -->
+    <header class="top-header">
+      <div class="header-search-wrap">
+        <button class="btn-sidebar-toggle-nav" id="sidebarNavToggle" onclick="PlanoraUI.toggleSidebar()" title="Toggle Sidebar Navigation">
+          <span>Sidebar</span>
+        </button>
+        <button class="mobile-menu-btn" onclick="PlanoraUI.toggleMobileSidebar()" title="Toggle Navigation Menu">Menu</button>
+
+        <div class="nlp-search-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="nlpSearchInput" class="nlp-input" placeholder="Ask AI: 'When am I free?', 'When am I productive?', 'Schedule 2h focus tomorrow'...">
+          <span class="nlp-hint-badge mono">↵ Enter</span>
+        </div>
+      </div>
+
+      <div class="top-actions-group">
+        <!-- Refresh Schedule & Metrics -->
+        <button class="btn-ghost-sm" id="btnRefresh" onclick="PlanoraUI.refreshAll(); PlanoraUI.showToast('Schedule & Metrics Refreshed');" title="Refresh All Data & Schedule">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+
+        <!-- Task Notifications & Audio Alert Switcher -->
+        <button class="btn-time-toggle" id="btnNotificationToggle" onclick="PlanoraNotify.openSettingsModal()" title="Task Notifications & Sound Alert Settings">
+          <span id="headerNotificationIcon">🔔</span>
+          <span id="headerNotificationLabel">Alerts</span>
+        </button>
+
+        <!-- Time Theme 12h/24h Toggle -->
+        <button class="btn-time-toggle" id="btnTimeFormatToggle" onclick="PlanoraStore.toggleTimeFormat()" title="Toggle 12-Hour AM/PM / 24-Hour Military Time Theme">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          12H (AM/PM)
+        </button>
+
+        <!-- Workspace Timezone Switcher -->
+        <button class="btn-time-toggle" id="btnTimezoneToggle" onclick="PlanoraUI.openTimezoneModal()" title="Change Workspace Timezone">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span id="headerTimezoneLabel">Timezone</span>
+        </button>
+
+        <!-- Google Calendar / iCal Bulk Export -->
+        <button class="btn-ghost-sm" onclick="PlanoraUI.exportICSFile()" title="Export all events to .ICS for Google Calendar / Apple Calendar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Export .ICS
+        </button>
+
+        <!-- History Undo / Redo Buttons -->
+        <div class="history-btn-group">
+          <button class="btn-history" id="btnUndo" title="Undo (Ctrl+Z)" onclick="PlanoraStore.undo()" disabled>
+            Undo
+          </button>
+          <button class="btn-history" id="btnRedo" title="Redo (Ctrl+Y)" onclick="PlanoraStore.redo()" disabled>
+            Redo
+          </button>
+        </div>
+
+        <button class="btn-ghost-sm" onclick="PlanoraUI.openAIDrawer()">
+          Ask AI Agent
+        </button>
+        <button class="btn-primary" onclick="PlanoraUI.openAddModal()">
+          + Add Event
+        </button>
+      </div>
+    </header>
+
+    <!-- Inline AI Response Box (Triggered via Top NLP Bar) -->
+    <section class="ai-response-box" id="aiResponseBox">
+      <div class="ai-response-title">
+        <span>Planora AI Schedule Intelligence</span>
+        <button class="modal-close-btn" style="margin-left: auto;" onclick="document.getElementById('aiResponseBox').style.display='none'">✕</button>
+      </div>
+      <div id="aiResponseContent" style="font-size: 13.5px; line-height: 1.6; color: var(--text-primary);"></div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 1: OVERVIEW & TIMELINE STREAM
+         ============================================================ -->
+    <section id="view-overview" class="view-section active">
+
+      <!-- Greeting & Sync Header -->
+      <div class="section-subheader">
+        <div>
+          <h1 class="greeting-title">Schedule Intelligence & Plan</h1>
+          <div class="greeting-sub">
+            <span>Welcome back, <strong id="greetingName">User</strong></span>
+            <span>•</span>
+            <span class="mono">Today: Active Schedule</span>
+          </div>
+        </div>
+        <div class="sync-pills-group">
+          <div class="sync-pill">
+            <span class="sync-indicator"></span>
+            <span>Google Workspace Synced</span>
+          </div>
+          <div class="sync-pill">
+            <span class="sync-indicator"></span>
+            <span>Circadian Autopilot On</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Metrics Grid (Calculated from Real Data) -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Focus Time Ratio</span>
+            <span class="metric-icon-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+            </span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value mono" id="kpiFocusRatio">0%</span>
+            <span class="metric-target mono">/ 70% target</span>
+          </div>
+          <div class="metric-footer">
+            <span class="trend-up">Circadian Aligned</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Task Completion Rate</span>
+            <span class="metric-icon-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value mono" id="kpiCompletionRate">0%</span>
+            <span class="metric-target mono">velocity</span>
+          </div>
+          <div class="metric-footer">
+            <span>Historical adherence tracking</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Meeting Load</span>
+            <span class="metric-icon-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value mono" id="kpiMeetingLoad">0h</span>
+            <span class="metric-target mono">scheduled</span>
+          </div>
+          <div class="metric-footer">
+            <span>Max limit: &lt; 10h/wk</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Productivity Score</span>
+            <span class="metric-icon-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value mono" id="kpiProductivityScore">0/100</span>
+          </div>
+          <div class="metric-footer">
+            <span>Based on high-energy focus</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Task Velocity Bar Chart Card -->
+      <div class="chart-section-card">
+        <div class="chart-header">
+          <div>
+            <h2 class="section-title">
+              <span>Task Velocity: Tasks Given vs Tasks Completed</span>
+            </h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              Daily breakdown of tasks assigned/given vs tasks successfully completed
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div class="tab-pill-group">
+              <button class="tab-pill-btn active" id="chartRange7" onclick="PlanoraUI.setChartRange(7)">7 Days</button>
+              <button class="tab-pill-btn" id="chartRange14" onclick="PlanoraUI.setChartRange(14)">14 Days</button>
+              <button class="tab-pill-btn" id="chartRange30" onclick="PlanoraUI.setChartRange(30)">30 Days</button>
+            </div>
+            <div class="chart-legend-row">
+              <div class="legend-item">
+                <span class="legend-bullet legend-given"></span>
+                <span>Tasks Given</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-bullet legend-completed"></span>
+                <span>Tasks Completed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-canvas-wrapper">
+          <svg id="chartSvg" class="svg-chart"></svg>
+          <div id="chartTooltip" class="chart-tooltip"></div>
+        </div>
+      </div>
+
+      <!-- Protected Deadlines Overview Card -->
+      <div class="deadlines-overview-widget">
+        <div class="deadlines-header-row">
+          <div class="deadlines-header-left">
+            <span class="deadlines-title-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            <div>
+              <h3 class="deadlines-title">Protected Deadlines</h3>
+              <p class="deadlines-subtitle">Hard-commitment milestones defended by Circadian Autopilot</p>
+            </div>
+          </div>
+          <button class="btn-ghost-sm" onclick="PlanoraUI.switchView('deadlines')">View all (<span id="overviewDeadlineCount">1</span>)</button>
+        </div>
+        <div id="overviewDeadlinesList" class="deadlines-grid"></div>
+      </div>
+
+      <!-- 2-Column Dashboard -->
+      <div class="dashboard-layout">
+
+        <!-- Today's Timeline Stream -->
+        <div class="section-card">
+          <div class="section-title-row">
+            <h3 class="section-title">Today's Schedule Stream</h3>
+            <button class="btn-ghost-sm" onclick="PlanoraUI.openAddModal()">+ Add Event</button>
+          </div>
+
+          <!-- Filter Chips -->
+          <div class="filter-chips-row">
+            <button class="filter-chip active" data-filter="all">All Items</button>
+            <button class="filter-chip" data-filter="focus">Focus Time</button>
+            <button class="filter-chip" data-filter="meeting">Meetings</button>
+            <button class="filter-chip" data-filter="routine">Routines</button>
+            <button class="filter-chip" data-filter="completed">Completed</button>
+          </div>
+
+          <!-- Dynamic Events Container -->
+          <div class="timeline-stream" id="timelineStream"></div>
+        </div>
+
+        <!-- AI Assistant Quick Card -->
+        <div class="section-card">
+          <div class="section-title-row">
+            <h3 class="section-title">AI Schedule Assistant</h3>
+            <span class="badge-ai-mini">Active</span>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px;">
+            Ask questions about your availability, peak focus, or slump hours:
+          </p>
+
+          <div class="ai-quick-prompts">
+            <button class="ai-prompt-pill" onclick="PlanoraUI.openAIDrawer(); PlanoraUI.sendAIMessage('When am I free today?')">
+              When am I free today?
+            </button>
+            <button class="ai-prompt-pill" onclick="PlanoraUI.openAIDrawer(); PlanoraUI.sendAIMessage('When am I very productive?')">
+              When is my peak focus?
+            </button>
+            <button class="ai-prompt-pill" onclick="PlanoraUI.openAIDrawer(); PlanoraUI.sendAIMessage('When am I very lazy or having low energy?')">
+              When do I get lazy / slump?
+            </button>
+            <button class="ai-prompt-pill" onclick="PlanoraUI.openAIDrawer(); PlanoraUI.sendAIMessage('Suggest tasks to add')">
+              Suggest tasks for open slots
+            </button>
+            <button class="ai-prompt-pill" onclick="PlanoraUI.openAIDrawer(); PlanoraUI.sendAIMessage('Suggest tomorrow\'s schedule')">
+              Suggest tomorrow's schedule
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         VIEW 2: WEEKLY CALENDAR MATRIX & TASK CONTROL
+         ============================================================ -->
+    <section id="view-calendar" class="view-section">
+      <!-- Section Subheader with Week Navigation -->
+      <div class="section-subheader">
+        <div>
+          <h1 class="greeting-title">7-Day Weekly Matrix</h1>
+          <div class="greeting-sub">Track weekly execution progress, to-do backlog, and time-blocked calendar flow</div>
+        </div>
+        <div class="weekly-nav-actions">
+          <div class="weekly-nav-controls">
+            <button class="btn-ghost" onclick="PlanoraUI.weeklyPrev()" title="Previous Week">Prev</button>
+            <button class="btn-secondary" onclick="PlanoraUI.weeklyToday()" title="Jump to Current Week">Current Week</button>
+            <button class="btn-ghost" onclick="PlanoraUI.weeklyNext()" title="Next Week">Next</button>
+          </div>
+          <span class="badge-accent mono" id="weeklyDateRange">Loading week...</span>
+          <button class="btn-primary" onclick="PlanoraUI.openAddModal()">+ New Event</button>
+        </div>
+      </div>
+
+      <!-- Weekly Progress Dashboard / KPIs -->
+      <div class="weekly-progress-dashboard" id="weeklyProgressDashboard">
+        <!-- 4 Metric Cards -->
+        <div class="weekly-metrics-grid">
+          <div class="metric-card weekly-metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Tasks Taken / Planned</span>
+              <span class="metric-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+              </span>
+            </div>
+            <div class="metric-value mono" id="weeklyTasksTaken">0</div>
+            <div class="metric-sub" id="weeklyTasksTakenSub">Scheduled across 7 days</div>
+          </div>
+
+          <div class="metric-card weekly-metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Tasks Completed</span>
+              <span class="metric-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </div>
+            <div class="metric-value mono" id="weeklyTasksCompleted">0</div>
+            <div class="metric-sub" id="weeklyCompletionRate">0% completion velocity</div>
+          </div>
+
+          <div class="metric-card weekly-metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Tasks Remaining</span>
+              <span class="metric-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+            </div>
+            <div class="metric-value mono" id="weeklyTasksPending">0</div>
+            <div class="metric-sub" id="weeklyTasksPendingSub">Pending execution</div>
+          </div>
+
+          <div class="metric-card weekly-metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Weekly Workload</span>
+              <span class="metric-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </span>
+            </div>
+            <div class="metric-value mono" id="weeklyWorkloadHours">0.0h</div>
+            <div class="metric-sub" id="weeklyFocusBreakdown">0.0h Focus • 0.0h Meetings</div>
+          </div>
+        </div>
+
+        <!-- Weekly Progress Bar & Status -->
+        <div class="weekly-progress-bar-card">
+          <div class="weekly-progress-header">
+            <div class="weekly-progress-title">
+              <span>Weekly Completion Progress</span>
+              <span class="badge-status-pill" id="weeklyProgressStatusBadge">Week Ready</span>
+            </div>
+            <span class="mono weekly-progress-pct" id="weeklyProgressPct">0%</span>
+          </div>
+          <div class="weekly-progress-track">
+            <div class="weekly-progress-fill" id="weeklyProgressFill" style="width: 0%;"></div>
+          </div>
+          <!-- 7-Day Mini Daily Breakdown Strip -->
+          <div class="weekly-day-breakdown-strip" id="weeklyDayBreakdownStrip">
+            <!-- Dynamically populated with Mon..Sun badges -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Workspace: Side-by-Side To-Do List & Weekly Matrix -->
+      <div class="weekly-workspace-layout">
+        <!-- Left: Weekly To-Do List Panel -->
+        <div class="weekly-todo-panel">
+          <div class="weekly-todo-header">
+            <div>
+              <h3 class="weekly-panel-title">Weekly To-Do List</h3>
+              <div class="weekly-panel-sub">Drag tasks to the matrix or check them off</div>
+            </div>
+            <span class="badge-counter mono" id="weeklyTodoCount">0</span>
+          </div>
+
+          <!-- Add To-Do Input Row -->
+          <div class="weekly-todo-add-box">
+            <div class="weekly-todo-input-row">
+              <input type="text" id="weeklyTodoInput" class="weekly-todo-input" placeholder="Add a weekly task... Press Enter" onkeydown="if(event.key==='Enter') PlanoraUI.addWeeklyTodo()" />
+              <button class="btn-primary weekly-todo-add-btn" onclick="PlanoraUI.addWeeklyTodo()">+ Add</button>
+            </div>
+            <div class="weekly-todo-controls-row">
+              <select id="weeklyTodoCategory" class="weekly-todo-select">
+                <option value="focus">Focus</option>
+                <option value="meeting">Meeting</option>
+                <option value="routine">Routine</option>
+                <option value="buffer">Buffer</option>
+                <option value="personal">Personal</option>
+              </select>
+              <select id="weeklyTodoPriority" class="weekly-todo-select">
+                <option value="high">High</option>
+                <option value="medium" selected>Med</option>
+                <option value="low">Low</option>
+              </select>
+              <select id="weeklyTodoDaySelect" class="weekly-todo-select">
+                <!-- Dynamically populated with Unscheduled + Mon..Sun -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Filter Tabs -->
+          <div class="weekly-todo-filter-tabs">
+            <button class="weekly-filter-btn active" id="weeklyFilterAllBtn" onclick="PlanoraUI.setWeeklyTodoFilter('all')">All (<span id="countAllWeekly">0</span>)</button>
+            <button class="weekly-filter-btn" id="weeklyFilterPendingBtn" onclick="PlanoraUI.setWeeklyTodoFilter('pending')">Pending (<span id="countPendingWeekly">0</span>)</button>
+            <button class="weekly-filter-btn" id="weeklyFilterDoneBtn" onclick="PlanoraUI.setWeeklyTodoFilter('completed')">Done (<span id="countDoneWeekly">0</span>)</button>
+          </div>
+
+          <!-- Interactive To-Do List Container -->
+          <div class="weekly-todo-list" id="weeklyTodoList">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div class="weekly-todo-footer">
+            <div class="weekly-dnd-hint"><span>Drag tasks onto matrix time slots to schedule</span></div>
+          </div>
+        </div>
+
+        <!-- Right: 7-Day Weekly Matrix Calendar Panel -->
+        <div class="weekly-calendar-panel">
+          <div class="weekly-matrix-header">
+            <div class="weekly-matrix-legend">
+              <span class="legend-chip circadian"><span class="legend-dot circadian"></span> Circadian Peak (09:00–12:00)</span>
+              <span class="legend-chip focus"><span class="legend-dot focus"></span> Focus</span>
+              <span class="legend-chip meeting"><span class="legend-dot meeting"></span> Meeting</span>
+              <span class="legend-chip routine"><span class="legend-dot routine"></span> Routine</span>
+            </div>
+            <div class="weekly-matrix-quick-add">
+              <span class="weekly-tz-hint" id="weeklyTzHint">Timezone: UTC</span>
+            </div>
+          </div>
+
+          <div class="calendar-matrix-wrapper">
+            <div class="calendar-matrix-grid" id="calendarMatrix"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 3: CIRCADIAN ANALYTICS
+         ============================================================ -->
+    <section id="view-analytics" class="view-section">
+      <div class="section-subheader">
+        <div>
+          <h1 class="greeting-title">Circadian Rhythm & Habit Analytics</h1>
+          <div class="greeting-sub">Historical task completion velocities across circadian time buckets</div>
+        </div>
+      </div>
+
+      <div class="analytics-split-grid">
+        <div class="section-card">
+          <h3 class="section-title">Circadian Time Bucket Distribution</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Task completion rates by time of day</p>
+          <div class="stat-bars-stack" id="circadianBars"></div>
+        </div>
+
+        <div class="section-card">
+          <h3 class="section-title">Behavioral Productivity Insights</h3>
+          <div style="font-size: 13px; line-height: 1.6; margin-top: 14px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle);">
+              <strong>Morning Peak (09:00 - 13:00):</strong>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                Highest cognitive stamina. Ideal for deep programming, architecture design, and strategic writing.
+              </p>
+            </div>
+            <div style="padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-subtle);">
+              <strong>Afternoon Slump (13:00 - 16:30):</strong>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                Lowest energy period. Ideal for asynchronous email triage, routine administrative tickets, and team syncs.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 5: AUTOPILOT RULES & SETTINGS
+         ============================================================ -->
+    <section id="view-settings" class="view-section">
+      <div class="section-subheader">
+        <div>
+          <h1 class="greeting-title">Autopilot Schedule Rules</h1>
+          <div class="greeting-sub">Configure how Planora AI defends and organizes your working calendar</div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="settings-group">
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-title">Defend Peak Morning Focus</span>
+              <span class="settings-desc">Automatically reject or flag meetings scheduled between 09:30 AM and 11:30 AM.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked id="ruleDefendFocus">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-title">No Meetings Before 10:00 AM</span>
+              <span class="settings-desc">Keep early mornings strictly reserved for setup and high-priority deep work.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked id="ruleNoMeetingsEarly">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-title">Automatic 15-Minute Buffers After Meetings</span>
+              <span class="settings-desc">Insert breathing and note-consolidation buffers to prevent meeting fatigue.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked id="ruleBuffers">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-title">Hard Evening Shutdown at 6:30 PM</span>
+              <span class="settings-desc">Alert and block new events from being scheduled into evening recovery time.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked id="ruleShutdown">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-title">Workspace Timezone & Regional Clock</span>
+              <span class="settings-desc">Primary timezone used for scheduling, reminders, and circadian analytics: <strong id="settingsTzLabel">Auto-detected</strong></span>
+            </div>
+            <button class="btn-ghost-sm" onclick="PlanoraUI.openTimezoneModal()">Change Timezone</button>
+          </div>
+
+          <div class="settings-row" style="align-items: flex-start;">
+            <div class="settings-info">
+              <span class="settings-title">AI Engine & API Keys (Grok / DeepSeek)</span>
+              <span class="settings-desc">Power your autonomous schedule agent with xAI Grok (Grok-2, Grok-Beta) or DeepSeek (V3, R1 Reasoner) for unconstrained scheduling intelligence.</span>
+              <div style="margin-top: 6px; font-size: 11.5px;" class="mono" id="settingsAiStatusText">
+                Active Provider: DeepSeek (deepseek-chat)
+              </div>
+            </div>
+            <button class="btn-primary" onclick="PlanoraUI.openAIConfigModal()" style="font-size: 12px; padding: 6px 12px;">Configure AI Key</button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 6: DEDICATED PLANORA AI CO-PILOT
+         ============================================================ -->
+    <section id="view-ai" class="view-section">
+      <!-- AI Co-Pilot Top Status Bar -->
+      <div class="ai-copilot-top-bar">
+        <div class="ai-copilot-brand-wrap">
+          <div class="copilot-sparkle-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20M5 5l14 14M19 5L5 19"/></svg>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="copilot-brand-title">Planora AI Co-Pilot</span>
+              <span class="copilot-status-chip">
+                <span class="copilot-status-dot"></span> Online
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety Guardrail Banner -->
+      <div class="ai-guardrail-banner">
+        <span>AI cannot modify Critical/Important events without confirmation</span>
+      </div>
+
+      <!-- AI Diagnostic Analytics Grid -->
+      <div class="ai-diagnostic-grid" id="aiDiagnosticGrid">
+        <div class="ai-diagnostic-card">
+          <div class="ai-diagnostic-top">
+            <span class="ai-diagnostic-label">Peak Focus Window</span>
+            <span class="ai-diagnostic-badge">18:00 - 23:00 (Night Owl)</span>
+          </div>
+          <div class="ai-diagnostic-main" id="aiDiagPeak">Evening Peak Focus</div>
+          <div class="ai-diagnostic-desc">
+            Highest cognitive stamina & task completion velocity. Defended against meeting overload.
+          </div>
+        </div>
+
+        <div class="ai-diagnostic-card">
+          <div class="ai-diagnostic-top">
+            <span class="ai-diagnostic-label">Slump Defense & Dip</span>
+            <span class="ai-diagnostic-badge">13:30 - 16:00</span>
+          </div>
+          <div class="ai-diagnostic-main" id="aiDiagSlump">Afternoon Slump</div>
+          <div class="ai-diagnostic-desc">
+            Lowest cognitive energy period. AI automatically routes low-friction admin and routines here.
+          </div>
+        </div>
+
+        <div class="ai-diagnostic-card">
+          <div class="ai-diagnostic-top">
+            <span class="ai-diagnostic-label">Live Availability</span>
+            <span class="ai-diagnostic-badge" id="aiDiagFreeBadge">Open Slots</span>
+          </div>
+          <div class="ai-diagnostic-main" id="aiDiagFreeHours">-- h Available</div>
+          <div class="ai-diagnostic-desc" id="aiDiagFreeDesc">
+            Scanning circadian windows for contiguous deep-work blocks and buffers.
+          </div>
+        </div>
+
+        <div class="ai-diagnostic-card">
+          <div class="ai-diagnostic-top">
+            <span class="ai-diagnostic-label">Protected Deadlines</span>
+            <span class="ai-diagnostic-badge" style="background: rgba(220,38,38,0.1); color: #dc2626; border-color: rgba(220,38,38,0.25);">Active</span>
+          </div>
+          <div class="ai-diagnostic-main" id="aiDiagDeadlinesCount">1 Milestone</div>
+          <div class="ai-diagnostic-desc">
+            AI defends critical milestone submissions and automatically suggests deep focus blocks.
+          </div>
+        </div>
+      </div>
+
+      <!-- Main AI Studio Layout (2 Columns) -->
+      <div class="ai-studio-grid">
+
+        <!-- Column 1: AI Agent Interactive Conversation Console -->
+        <div class="ai-console-card">
+          <div class="ai-console-header">
+            <div class="ai-console-title-wrap">
+              <span class="ai-status-indicator"></span>
+              <span style="font-weight: 800; font-size: 14px;">Planora AI Co-Pilot</span>
+              <span class="badge-ai-mini">Online</span>
+            </div>
+            <div class="ai-console-actions">
+              <button class="btn-ghost-sm" onclick="PlanoraUI.clearAIChat()" style="font-size: 11px; padding: 3px 8px;">Clear Chat</button>
+            </div>
+          </div>
+
+          <!-- Welcome & Context Card -->
+          <div class="ai-copilot-welcome-card" id="aiWelcomeCard">
+            <div class="copilot-welcome-header">
+              <span class="copilot-wave">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20M5 5l14 14M19 5L5 19"/></svg>
+              </span>
+              <div>
+                <div class="copilot-title">Hi Arjun! I'm <strong>ScheduleAI</strong> (powered by Planora AI), your specialized schedule agent.</div>
+              </div>
+            </div>
+            <p class="copilot-body">
+              I optimize your calendar around circadian biological rhythms (Night Owl), guard your <strong>Protected Deadlines</strong>, and resolve scheduling conflicts. Try the quick prompts below or ask any scheduling question.
+            </p>
+            <div class="copilot-timestamp" id="copilotGreetingTime">16:18</div>
+          </div>
+
+          <!-- Try Interactive Prompt Pills -->
+          <div class="ai-try-section">
+            <span class="ai-try-label">Try:</span>
+            <div class="ai-try-pills-row">
+              <button class="ai-try-pill" onclick="PlanoraUI.sendFullAIMessage('How does my day look tomorrow?')">
+                How does my day look tomorrow?
+              </button>
+              <button class="ai-try-pill" onclick="PlanoraUI.sendFullAIMessage('Reschedule my uncompleted tasks to tomorrow evening')">
+                Reschedule my uncompleted tasks to tomorrow evening
+              </button>
+              <button class="ai-try-pill" onclick="PlanoraUI.sendFullAIMessage('Schedule a 45 min workout tonight at 8 PM')">
+                Schedule a 45 min workout tonight at 8 PM
+              </button>
+              <button class="ai-try-pill" onclick="PlanoraUI.sendFullAIMessage('What are my highest priority upcoming deadlines?')">
+                What are my highest priority upcoming deadlines?
+              </button>
+              <button class="ai-try-pill" onclick="PlanoraUI.sendFullAIMessage('Assess my burnout risk for this week')">
+                Assess my burnout risk for this week
+              </button>
+            </div>
+          </div>
+
+          <!-- Messages Stream Container -->
+          <div class="ai-console-body" id="fullAiChatMessages"></div>
+
+          <!-- Console Footer Input -->
+          <div class="ai-console-footer">
+            <input type="text" id="fullAiChatInput" class="ai-chat-input" placeholder="Ask AI Co-Pilot to reschedule, audit burnout, plan routines, or answer questions..." onkeydown="if(event.key==='Enter') PlanoraUI.sendFullAIMessage()">
+            <button class="btn-primary" onclick="PlanoraUI.sendFullAIMessage()">Ask Co-Pilot ↵</button>
+          </div>
+        </div>
+
+        <!-- Column 2: Autonomous Schedule Generation & Task Recommendations -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+
+          <!-- 1-Click Future Schedule Proposal Generator -->
+          <div class="section-card">
+            <div class="section-title-row">
+              <h3 class="section-title">Autonomous Schedule Generator</h3>
+              <span class="badge-ai-mini">Circadian</span>
+            </div>
+            <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px;">
+              Let AI design your tomorrow's schedule automatically aligned with your historical peak performance hours.
+            </p>
+            <div id="aiStudioProposalContainer" style="margin-bottom: 12px;"></div>
+            <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="PlanoraUI.generateAndShowStudioSchedule()">
+              Generate Tomorrow's Plan
+            </button>
+          </div>
+
+          <!-- Contextual Task Recommendations -->
+          <div class="section-card">
+            <div class="section-title-row">
+              <h3 class="section-title">Recommended Tasks for Open Slots</h3>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+              High-value tasks tailored to match your open time intervals:
+            </p>
+            <div id="aiStudioTaskRecommendations" style="display: flex; flex-direction: column; gap: 10px;"></div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         VIEW: DAILY TASKS & ACTION ITEMS
+         ============================================================ -->
+    <section id="view-tasks" class="view-section">
+      <!-- Header with Velocity Gauge -->
+      <div class="tasks-header-card">
+        <div class="tasks-header-left">
+          <div class="tasks-icon-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <h1 class="tasks-main-title">Daily Tasks & Action Items</h1>
+              <span class="rollover-indicator-pill">
+                <span class="rollover-dot"></span> Auto-rollover on at midnight
+              </span>
+            </div>
+            <p class="tasks-sub-title">Tasks with active auto-rollover and intelligent calendar slot integration.</p>
+          </div>
+        </div>
+
+        <!-- Velocity Gauge -->
+        <div class="tasks-velocity-gauge-box">
+          <div class="velocity-percentage" id="tasksVelocityPct">29%</div>
+          <div class="velocity-labels">
+            <span class="velocity-status-text">Done</span>
+            <span class="velocity-ratio-text" id="tasksVelocityRatio">2 of 7 Completed</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Task Auto-Arranger Banner -->
+      <div class="task-arranger-banner">
+        <div class="task-arranger-banner-left">
+          <div class="task-arranger-sparkle">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div>
+            <h3 class="task-arranger-headline">AI Task Auto-Arranger</h3>
+            <p class="task-arranger-desc">Paste a messy list of tasks — AI will parse durations, priorities & fit them into calendar gaps.</p>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="PlanoraUI.openTaskArrangerModal()" style="padding: 8px 16px; font-size: 12.5px;">
+          Open Arranger
+        </button>
+      </div>
+
+      <!-- Quick Add Task Bar -->
+      <div class="task-creator-bar">
+        <input type="text" id="dailyTaskQuickInput" class="task-creator-input" placeholder="Add a new task (e.g. Review DBMS Chapter 4)..." onkeydown="if(event.key==='Enter') PlanoraUI.addDailyTaskFromBar()">
+        <select id="dailyTaskPrioritySelect" class="weekly-todo-select" style="padding: 7px 10px;">
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="dailyTaskCategorySelect" class="weekly-todo-select" style="padding: 7px 10px;">
+          <option value="study" selected>Study</option>
+          <option value="work">Work</option>
+          <option value="college">College</option>
+          <option value="deadline">Deadline</option>
+          <option value="personal">Personal</option>
+        </select>
+        <select id="dailyTaskDurationSelect" class="weekly-todo-select" style="padding: 7px 10px;">
+          <option value="15m">15m</option>
+          <option value="30m" selected>30m</option>
+          <option value="45m">45m</option>
+          <option value="60m">60m</option>
+          <option value="90m">90m</option>
+          <option value="120m">120m</option>
+        </select>
+        <input type="time" id="dailyTaskTimeInput" class="task-creator-time-input" title="Set specific reminder / alert time (optional)">
+        <button class="btn-primary" onclick="PlanoraUI.addDailyTaskFromBar()" style="padding: 7px 16px;">
+          Add
+        </button>
+      </div>
+
+      <!-- Filter Tabs & Priority Filter -->
+      <div class="task-filter-controls-row">
+        <div class="task-filter-tabs">
+          <button class="task-filter-btn active" id="dailyFilterAllBtn" onclick="PlanoraUI.setDailyTaskFilter('all')">all (<span id="countAllDailyTasks">7</span>)</button>
+          <button class="task-filter-btn" id="dailyFilterPendingBtn" onclick="PlanoraUI.setDailyTaskFilter('pending')">pending (<span id="countPendingDailyTasks">5</span>)</button>
+          <button class="task-filter-btn" id="dailyFilterCompletedBtn" onclick="PlanoraUI.setDailyTaskFilter('completed')">completed (<span id="countCompletedDailyTasks">2</span>)</button>
+        </div>
+        <div>
+          <select id="dailyPriorityFilterSelect" class="weekly-todo-select" style="padding: 5px 10px;" onchange="PlanoraUI.renderDailyTasks()">
+            <option value="all">All Priorities</option>
+            <option value="critical">Critical Only</option>
+            <option value="high">High Only</option>
+            <option value="medium">Medium Only</option>
+            <option value="low">Low Only</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Daily Task Items Stack -->
+      <div class="daily-tasks-list-stack" id="dailyTasksListStack">
+        <!-- Dynamically rendered tasks -->
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW: PROTECTED DEADLINES & MILESTONES
+         ============================================================ -->
+    <section id="view-deadlines" class="view-section">
+      <div class="section-subheader">
+        <div>
+          <h1 class="greeting-title">Protected Deadlines</h1>
+          <div class="greeting-sub">High-stakes milestones defended by Circadian Autopilot with real-time countdown tracking</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn-primary" onclick="PlanoraUI.openDeadlineModal()">+ New Deadline Milestone</button>
+        </div>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="task-filter-controls-row">
+        <div class="task-filter-tabs">
+          <button class="task-filter-btn active" id="deadlineFilterAllBtn" onclick="PlanoraUI.setDeadlineFilter('all')">All (<span id="countAllDeadlines">1</span>)</button>
+          <button class="task-filter-btn" id="deadlineFilterActiveBtn" onclick="PlanoraUI.setDeadlineFilter('active')">Active</button>
+          <button class="task-filter-btn" id="deadlineFilterOverdueBtn" onclick="PlanoraUI.setDeadlineFilter('overdue')">Overdue</button>
+          <button class="task-filter-btn" id="deadlineFilterDoneBtn" onclick="PlanoraUI.setDeadlineFilter('completed')">Completed</button>
+        </div>
+      </div>
+
+      <!-- Deadlines Grid Container -->
+      <div class="deadlines-grid" id="deadlinesMainGrid">
+        <!-- Dynamically rendered deadline cards -->
+      </div>
+    </section>
+
+    <!-- ============================================================
+         MONTHLY PLANNER (30-Day Calendar + To-Do Drag & Drop)
+         ============================================================ -->
+    <section id="view-monthly" class="view-section">
+      <div class="section-subheader">
+        <div>
+          <h1 class="greeting-title">Monthly Planner</h1>
+          <div class="greeting-sub">30-day view from your first login · Drag tasks between your to-do list and calendar days</div>
+        </div>
+        <div class="sync-pills-group">
+          <div class="sync-pill">
+            <span class="sync-indicator"></span>
+            <span id="monthlyDateRange">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="monthly-planner-layout">
+        <!-- To-Do List Panel -->
+        <div class="monthly-todo-panel">
+          <div class="monthly-todo-header">
+            <h3>To-Do List</h3>
+            <button class="btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="PlanoraUI.openAddTodoModal()">+ Add Task</button>
+          </div>
+          <div class="monthly-todo-input-row" id="todoInputRow">
+            <input type="text" id="todoNewInput" class="monthly-todo-input" placeholder="Add a new task..." />
+            <select id="todoCategorySelect" class="monthly-todo-select">
+              <option value="focus">Focus</option>
+              <option value="meeting">Meeting</option>
+              <option value="routine">Routine</option>
+              <option value="buffer">Buffer</option>
+              <option value="personal">Personal</option>
+            </select>
+            <button class="btn-primary" style="font-size: 11px; padding: 5px 12px;" onclick="PlanoraUI.addTodoFromInput()">Add</button>
+          </div>
+          <div class="monthly-todo-list" id="monthlyTodoList">
+            <!-- Dynamically rendered to-do items (draggable) -->
+          </div>
+        </div>
+
+        <!-- Monthly Calendar Grid -->
+        <div class="monthly-calendar-panel">
+          <div class="monthly-calendar-header">
+            <button class="btn-ghost-sm" onclick="PlanoraUI.monthlyCalendarPrev()">← Prev</button>
+            <h3 id="monthlyCalendarTitle">30-Day Calendar</h3>
+            <button class="btn-ghost-sm" onclick="PlanoraUI.monthlyCalendarNext()">Next →</button>
+          </div>
+          <div class="monthly-calendar-weekdays">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div class="monthly-calendar-grid" id="monthlyCalendarGrid">
+            <!-- Dynamically rendered 30-day grid cells -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============================================================
+     ADD / EDIT EVENT MODAL
+     ============================================================ -->
+<div class="modal-backdrop" id="eventModal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">Schedule Event</h3>
+      <button class="modal-close-btn" onclick="PlanoraUI.closeModal()">✕</button>
+    </div>
+
+    <form id="eventForm" onsubmit="event.preventDefault(); PlanoraUI.saveEventFromModal();">
+      <div class="modal-body">
+        <input type="hidden" id="modalEventId">
+
+        <div class="form-group">
+          <label class="form-label">Event / Task Title</label>
+          <input type="text" id="eventTitle" class="form-input" placeholder="e.g. Deep Work: Refactor Core API" required>
+        </div>
+
+        <div class="preset-pills-row">
+          <span style="font-size: 11px; color: var(--text-muted); align-self: center;">Presets:</span>
+          <button type="button" class="preset-pill" onclick="document.getElementById('eventTitle').value='Deep Focus Session'; document.getElementById('eventCategory').value='focus';">+ Focus</button>
+          <button type="button" class="preset-pill" onclick="document.getElementById('eventTitle').value='Architecture Sync'; document.getElementById('eventCategory').value='meeting';">+ Meeting</button>
+          <button type="button" class="preset-pill" onclick="document.getElementById('eventTitle').value='Inbox & Triage'; document.getElementById('eventCategory').value='routine';">+ Routine</button>
+          <button type="button" class="preset-pill" onclick="document.getElementById('eventTitle').value='Recovery Buffer'; document.getElementById('eventCategory').value='buffer';">+ Buffer</button>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" id="eventDate" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="eventCategory" class="form-select">
+              <option value="focus">Focus Time</option>
+              <option value="meeting">Meeting</option>
+              <option value="routine">Routine / Admin</option>
+              <option value="buffer">Buffer / Break</option>
+              <option value="personal">Personal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Start Time</label>
+            <input type="time" id="eventStartTime" class="form-input" value="09:30" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Time</label>
+            <input type="time" id="eventEndTime" class="form-input" value="11:30" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="eventPriority" class="form-select">
+              <option value="high">High Priority</option>
+              <option value="medium" selected>Medium Priority</option>
+              <option value="low">Low Priority</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Energy Demand</label>
+            <select id="eventEnergy" class="form-select">
+              <option value="high">High Cognitive Energy</option>
+              <option value="medium" selected>Medium Energy</option>
+              <option value="low">Low Energy / Slump Friendly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes & AI Instructions</label>
+          <textarea id="eventNotes" class="form-textarea" placeholder="Objectives, sub-tasks, or scheduling constraints..."></textarea>
+        </div>
+
+        <div class="gcal-sync-option">
+          <input type="checkbox" id="syncGoogleCalCheck" style="cursor: pointer;">
+          <label for="syncGoogleCalCheck" style="font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;">
+            <span>Direct Sync to Google Calendar on Save</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="modal-footer-left" id="modalEditActions" style="display: none; align-items: center; gap: 8px;">
+          <button type="button" class="btn-danger-outline" id="btnDeleteEventFromModal" onclick="PlanoraUI.deleteCurrentModalEvent()" title="Delete this event">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete Task
+          </button>
+          <button type="button" class="btn-success-outline" id="btnCompleteEventFromModal" onclick="PlanoraUI.completeCurrentModalEvent()" title="Toggle task completion">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span id="completeModalBtnText">Complete Task</span>
+          </button>
+        </div>
+        <div class="modal-footer-right" style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+          <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Save Event</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     AI AGENT CHAT DRAWER
+     ============================================================ -->
+<div class="ai-agent-backdrop" id="aiAgentBackdrop" onclick="if(event.target===this) PlanoraUI.closeAIDrawer()">
+  <div class="ai-agent-drawer">
+    <div class="ai-drawer-header">
+      <div class="ai-drawer-title-wrap">
+        <span class="ai-status-indicator"></span>
+        <span style="font-size: 15px; font-weight: 800;">Planora AI Schedule Agent</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="modal-close-btn" onclick="PlanoraUI.closeAIDrawer()">✕</button>
+      </div>
+    </div>
+
+    <div class="ai-drawer-body" id="aiChatMessages"></div>
+
+    <div class="ai-drawer-footer">
+      <input type="text" id="aiChatInput" class="ai-chat-input" placeholder="Ask AI: 'Schedule deep work', 'When am I free?', 'Audit today'..." onkeydown="if(event.key==='Enter') PlanoraUI.sendAIMessage()">
+      <button class="btn-primary" onclick="PlanoraUI.sendAIMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating AI Trigger Button -->
+<button class="floating-ai-trigger" onclick="PlanoraUI.openAIDrawer()" title="Open Planora AI Agent">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+  <span>Planora AI Agent</span>
+</button>
+
+<!-- ============================================================
+     WORKSPACE TIMEZONE SWITCHER & MANAGER MODAL
+     ============================================================ -->
+<div class="modal-backdrop" id="timezoneModal" onclick="if(event.target===this) PlanoraUI.closeTimezoneModal()">
+  <div class="modal-container timezone-modal-container">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">Workspace Timezone</h3>
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+          Set your operational timezone for circadian peak scheduling & global syncing
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="PlanoraUI.closeTimezoneModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Active Live Timezone Card -->
+      <div class="timezone-active-card">
+        <div class="tz-active-left">
+          <span class="tz-active-label">Active Timezone</span>
+          <span class="tz-active-name" id="modalActiveTzName">UTC</span>
+          <span class="tz-active-offset" id="modalActiveTzOffset">UTC+00:00</span>
+        </div>
+        <div class="tz-active-clock" id="modalActiveTzClock">12:00:00 PM</div>
+      </div>
+
+      <!-- Search & Auto-Detect Controls -->
+      <div class="timezone-search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="tzSearchInput" class="timezone-search-input" placeholder="Search by city, country, or timezone name (e.g. New York, London, IST, Tokyo)..." oninput="PlanoraUI.renderTimezoneList(this.value)">
+        <button class="timezone-detect-btn" onclick="PlanoraUI.autoDetectTimezone()" title="Auto-detect local system timezone">
+          Auto-Detect
+        </button>
+      </div>
+
+      <!-- Quick Select List -->
+      <div class="timezone-list" id="timezoneListContainer">
+        <!-- Dynamically rendered timezone items with live times -->
+      </div>
+
+      <!-- Custom IANA Timezone Input -->
+      <div class="custom-tz-row">
+        <input type="text" id="customTzInput" class="form-input" placeholder="Or enter exact IANA timezone (e.g. America/Chicago, Asia/Dubai)" style="font-size: 12px; padding: 7px 10px;">
+        <button class="btn-primary" style="font-size: 11.5px; padding: 6px 12px; white-space: nowrap;" onclick="PlanoraUI.addCustomTimezone()">Apply Custom</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.closeTimezoneModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     UNIVERSAL AI ENGINE & API KEYS CONFIGURATION MODAL
+     ============================================================ -->
+<div class="modal-backdrop" id="aiConfigModal" onclick="if(event.target===this) PlanoraUI.closeAIConfigModal()">
+  <div class="modal-container" style="max-width: 640px;">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">AI Engine & API Key Setup</h3>
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+          Connect any LLM API key (OpenAI, Gemini, Groq, DeepSeek, Grok, Anthropic, OpenRouter, or Custom Endpoint)
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="PlanoraUI.closeAIConfigModal()">✕</button>
+    </div>
+
+    <div class="modal-body" style="padding: 20px 24px;">
+      <!-- Quick Auto-Detect Helper -->
+      <div style="background: var(--bg-subtle); border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <div style="font-size: 11.5px; color: var(--text-secondary);">
+          <strong style="color: var(--text-primary);">Universal Key Auto-Detection:</strong> Paste any API key below and Planora will auto-detect the provider and configure the optimal model.
+        </div>
+      </div>
+
+      <!-- Provider Selection Tabs -->
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-label" style="margin-bottom: 8px;">Select AI Intelligence Provider</label>
+        <div class="provider-tabs-row">
+          <button type="button" class="provider-tab-btn" id="tabOpenAI" onclick="PlanoraUI.switchAIProviderTab('openai')">
+            <div class="provider-tab-name">OpenAI</div>
+            <div class="provider-tab-sub">GPT-4o / Mini</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabGemini" onclick="PlanoraUI.switchAIProviderTab('gemini')">
+            <div class="provider-tab-name">Gemini</div>
+            <div class="provider-tab-sub">1.5 Flash / Pro</div>
+          </button>
+          <button type="button" class="provider-tab-btn active" id="tabGroq" onclick="PlanoraUI.switchAIProviderTab('groq')">
+            <div class="provider-tab-name">Groq</div>
+            <div class="provider-tab-sub">Llama 3.3 70B</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabDeepSeek" onclick="PlanoraUI.switchAIProviderTab('deepseek')">
+            <div class="provider-tab-name">DeepSeek</div>
+            <div class="provider-tab-sub">V3 / R1 Reasoner</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabGrok" onclick="PlanoraUI.switchAIProviderTab('grok')">
+            <div class="provider-tab-name">xAI Grok</div>
+            <div class="provider-tab-sub">Grok-2 / Beta</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabAnthropic" onclick="PlanoraUI.switchAIProviderTab('anthropic')">
+            <div class="provider-tab-name">Anthropic</div>
+            <div class="provider-tab-sub">Claude 3.5 Sonnet</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabOpenRouter" onclick="PlanoraUI.switchAIProviderTab('openrouter')">
+            <div class="provider-tab-name">OpenRouter</div>
+            <div class="provider-tab-sub">Multi-Model Hub</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabCustom" onclick="PlanoraUI.switchAIProviderTab('custom')">
+            <div class="provider-tab-name">Custom API</div>
+            <div class="provider-tab-sub">Ollama / Local</div>
+          </button>
+          <button type="button" class="provider-tab-btn" id="tabLocal" onclick="PlanoraUI.switchAIProviderTab('local')">
+            <div class="provider-tab-name">Heuristic</div>
+            <div class="provider-tab-sub">Offline Engine</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Provider Form Section -->
+      <div id="aiKeyFieldsSection">
+        <!-- Custom Endpoint URL (Visible only for custom provider) -->
+        <div class="form-group" id="aiCustomUrlGroup" style="display: none; margin-bottom: 14px;">
+          <label class="form-label" for="aiConfigCustomUrlInput">OpenAI-Compatible Base URL</label>
+          <input type="url" id="aiConfigCustomUrlInput" class="form-input mono" placeholder="http://localhost:11434/v1">
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+            Supports Ollama (<code>http://localhost:11434/v1</code>), LM Studio, vLLM, Azure OpenAI, Mistral, Together AI, etc.
+          </div>
+        </div>
+
+        <!-- Model Selector -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" for="aiConfigModelSelect">Model Selection</label>
+          <select id="aiConfigModelSelect" class="form-select">
+            <!-- Dynamically populated per provider -->
+          </select>
+        </div>
+
+        <!-- API Key Input -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" for="aiConfigApiKeyInput" style="margin-bottom: 0;" id="aiConfigKeyLabel">API Key</label>
+            <a href="https://platform.openai.com/api-keys" target="_blank" id="aiConfigGetApiKeyLink" class="text-link-sm" style="font-size: 11px; text-decoration: underline;">
+              Get API Key ↗
+            </a>
+          </div>
+          <div class="ai-key-input-wrapper">
+            <input type="password" id="aiConfigApiKeyInput" class="form-input mono" placeholder="Paste any API key..." autocomplete="off" oninput="PlanoraUI.handleAiKeyInput(this.value)">
+            <button type="button" class="btn-ghost-sm" id="btnToggleAiKeyVisibility" onclick="PlanoraUI.toggleAiKeyVisibility()" style="padding: 6px 10px; border-radius: var(--radius-sm);" title="Show/Hide Key">
+              Show
+            </button>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;" id="aiKeyHelperText">
+            Your API key is stored securely in your browser local storage and used for direct calendar planning & reasoning requests.
+          </div>
+        </div>
+
+        <!-- Connection Test & Status Row -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 10px 14px; background: var(--bg-body); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-primary);" id="aiTestResultTitle">API Status: Not Tested</div>
+            <div style="font-size: 10.5px; color: var(--text-muted);" id="aiTestResultDetail">Click "Test API Key" to verify latency and model access.</div>
+          </div>
+          <button type="button" class="btn-ghost-sm" id="btnTestAiConnection" onclick="PlanoraUI.testAIConnection()" style="font-size: 11.5px; padding: 5px 12px; white-space: nowrap; gap: 4px;">
+            <span>Test API Key</span>
+          </button>
+        </div>
+
+        <!-- Advanced AI Engine Parameters Toggle -->
+        <details style="margin-bottom: 12px; font-size: 12px; cursor: pointer;">
+          <summary style="font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">Advanced Prompt & Model Settings</summary>
+          <div style="padding: 10px; background: var(--bg-subtle); border-radius: var(--radius-sm); margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <label class="form-label" style="font-size: 11px;">Temperature (Creativity)</label>
+              <input type="number" id="aiConfigTemp" class="form-input" min="0" max="1" step="0.1" value="0.6" style="font-size: 12px; padding: 6px;">
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 11px;">Max Completion Tokens</label>
+              <input type="number" id="aiConfigMaxTokens" class="form-input" min="256" max="4096" step="256" value="2048" style="font-size: 12px; padding: 6px;">
+            </div>
+            <div style="grid-column: 1 / -1;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; cursor: pointer;">
+                <input type="checkbox" id="aiConfigCircadianContextCheck" checked>
+                <span>Automatically inject live Circadian rhythm, timezone, and calendar events into system prompt</span>
+              </label>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Local Heuristics Note (Shown when Local tab selected) -->
+      <div id="aiLocalNoteSection" style="display: none; padding: 14px; background: var(--bg-body); border-radius: var(--radius-md); border: 1.5px dashed var(--border-subtle); font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+        <strong>Built-in Circadian Heuristic Engine:</strong>
+        <p style="margin-top: 4px; margin-bottom: 0;">
+          Uses Planora's proprietary rule-based circadian logic (morning peak 09:00-12:30, slump recovery 13:15-15:30) locally in the browser without any external API keys or network requests.
+        </p>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+      <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.clearAIKey()" id="btnClearAiKey" style="color: #dc2626; border-color: rgba(220,38,38,0.2);">Clear Saved Key</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.closeAIConfigModal()">Cancel</button>
+        <button type="button" class="btn-primary" onclick="PlanoraUI.saveAIConfig()">Save & Activate Model</button>
+      </div>
+    </div>
+  </div>
+</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PROTECTED DEADLINE MODAL
+     ============================================================ -->
+<div class="modal-backdrop" id="deadlineModal" onclick="if(event.target===this) PlanoraUI.closeDeadlineModal()">
+  <div class="modal-container" style="max-width: 520px;">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title" id="deadlineModalTitle">Add Protected Deadline Milestone</h3>
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+          Define hard-commitment target timestamps defended by Planora Autopilot
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="PlanoraUI.closeDeadlineModal()">✕</button>
+    </div>
+
+    <form id="deadlineForm" onsubmit="event.preventDefault(); PlanoraUI.saveDeadlineFromModal();">
+      <div class="modal-body">
+        <input type="hidden" id="deadlineModalId">
+
+        <div class="form-group">
+          <label class="form-label" for="deadlineTitleInput">Milestone / Deliverable Title</label>
+          <input type="text" id="deadlineTitleInput" class="form-input" placeholder="e.g. AI Project Final Code Submission" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="deadlineDateInput">Target Date</label>
+            <input type="date" id="deadlineDateInput" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="deadlineTimeInput">Target Time</label>
+            <input type="time" id="deadlineTimeInput" class="form-input" value="05:29" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="deadlineCriticalitySelect">Criticality Level</label>
+            <select id="deadlineCriticalitySelect" class="form-select">
+              <option value="critical" selected>Critical (Highest Priority)</option>
+              <option value="high">High Urgency</option>
+              <option value="medium">Medium Urgency</option>
+              <option value="low">Low / Optional</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="deadlineCategorySelect">Category</label>
+            <select id="deadlineCategorySelect" class="form-select">
+              <option value="Deadline" selected>Deadline</option>
+              <option value="Study">Study / Academic</option>
+              <option value="Work">Work / Project</option>
+              <option value="College">College</option>
+              <option value="Personal">Personal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="deadlineNotesInput">Milestone Details & Deliverables</label>
+          <textarea id="deadlineNotesInput" class="form-textarea" placeholder="Final code files, Docker submission, demo links, submission portal criteria..."></textarea>
+        </div>
+
+        <div class="gcal-sync-option">
+          <input type="checkbox" id="deadlineScheduleDeepWorkCheck" checked style="cursor: pointer;">
+          <label for="deadlineScheduleDeepWorkCheck" style="font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;">
+            <span>Automatically schedule high-priority Deep Work preparation blocks</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.closeDeadlineModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Save Deadline</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     AI TASK AUTO-ARRANGER MODAL
+     ============================================================ -->
+<div class="modal-backdrop" id="taskArrangerModal" onclick="if(event.target===this) PlanoraUI.closeTaskArrangerModal()">
+  <div class="modal-container arranger-modal-container">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">AI Task Auto-Arranger</h3>
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+          Paste unformatted task lists — AI tokenizes titles, durations & fits them into open circadian windows
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="PlanoraUI.closeTaskArrangerModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Paste Task Dump (1 per line with optional duration/priority tokens):</label>
+        <textarea id="arrangerTextInput" class="arranger-textarea" placeholder="AI Project Final Code & Docker Submission 90m critical
+DBMS SQL & Indexing Revision 60m high study
+Python Graph Algorithms Practice 60m medium study
+Update Project Documentation & Wiki 30m work
+Read Research Paper on Transformer Attention 45m study" oninput="PlanoraUI.previewArrangedTasks()"></textarea>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+        <span style="font-size: 11.5px; color: var(--text-muted);">Parsed Tasks Preview:</span>
+        <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.parseAndFillArrangerSample()" style="font-size: 11px; padding: 2px 8px;">Load Sample Dump</button>
+      </div>
+
+      <div class="arranger-preview-container" id="arrangerPreviewContainer">
+        <table class="arranger-preview-table">
+          <thead>
+            <tr>
+              <th>Priority</th>
+              <th>Task Title</th>
+              <th>Duration</th>
+              <th>Category</th>
+              <th>Target Circadian Slot</th>
+            </tr>
+          </thead>
+          <tbody id="arrangerPreviewTbody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">Type or paste tasks above to see live AI circadian mapping</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+      <button type="button" class="btn-ghost-sm" onclick="PlanoraUI.closeTaskArrangerModal()">Cancel</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn-primary" onclick="PlanoraUI.applyArrangedTasks(false)">Add to Backlog Only</button>
+        <button type="button" class="btn-primary" style="background: #16a34a; border-color: #16a34a;" onclick="PlanoraUI.applyArrangedTasks(true)">Add & Auto-Schedule into Calendar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- History Undo / Redo Toast Notification -->
+<div id="historyToast" class="history-toast"></div>
+
+<!-- Floating Task Notification Permission Prompt Banner -->
+<div id="planoraNotificationPromptBanner" class="notification-permission-prompt">
+  <div class="notif-prompt-header">
+    <div class="notif-prompt-icon">🔔</div>
+    <div class="notif-prompt-text">
+      <h4>Enable Task Notifications?</h4>
+      <p>Get timely alerts with sound and vibration right when your scheduled tasks, events, and deadlines arrive.</p>
+    </div>
+  </div>
+  <div class="notif-prompt-actions">
+    <button class="btn-ghost-sm" style="font-size: 11px;" onclick="PlanoraNotify.testNotificationSample()">▶ Test Sound</button>
+    <button class="btn-ghost-sm" onclick="PlanoraNotify.dismissPermissionPrompt()">Not Now</button>
+    <button class="btn-primary" style="padding: 7px 14px; font-size: 12px;" onclick="PlanoraNotify.requestUserPermission()">
+      Enable Notifications
+    </button>
+  </div>
+</div>
+
+<!-- Notification & Audio Alert Settings Modal -->
+<div class="modal-backdrop" id="notificationSettingsModal" onclick="if(event.target===this) PlanoraNotify.closeSettingsModal()">
+  <div class="modal-container" style="max-width: 520px;">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">Task Notification &amp; Sound Settings</h3>
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+          Configure task alerts, audio chime synthesis, and vibration feedback
+        </p>
+      </div>
+      <button class="modal-close-btn" onclick="PlanoraNotify.closeSettingsModal()">✕</button>
+    </div>
+
+    <div class="modal-body" style="padding: 20px 24px;">
+      <!-- Permission Status -->
+      <div class="notif-settings-row">
+        <div class="notif-settings-info">
+          <h4>Browser Desktop Notifications</h4>
+          <p>System notification alerts when tab is active or minimized</p>
+        </div>
+        <div style="text-align: right;">
+          <div id="notifPermissionStatusText" style="font-size: 12px; margin-bottom: 6px;"></div>
+          <button type="button" class="btn-primary" style="font-size: 11px; padding: 4px 10px;" onclick="PlanoraNotify.requestUserPermission()">
+            Request / Recheck
+          </button>
+        </div>
+      </div>
+
+      <!-- Sound Chime Toggle -->
+      <div class="notif-settings-row">
+        <div class="notif-settings-info">
+          <h4>Audible Chime Alert</h4>
+          <p>Play dual-tone harmonic audio chime on task arrival</p>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notifSoundToggleCheck" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Vibration Toggle -->
+      <div class="notif-settings-row">
+        <div class="notif-settings-info">
+          <h4>Haptic Vibration Feedback</h4>
+          <p>Vibrate device on task arrival (supported mobile &amp; tablets)</p>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notifVibrateToggleCheck" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Test Actions -->
+      <div style="background: var(--bg-subtle); border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm); padding: 14px 16px; margin-top: 14px;">
+        <div style="font-size: 12px; color: var(--text-primary); font-weight: 700; margin-bottom: 6px;">
+          Test Alert System
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-secondary); margin-bottom: 10px;">
+          Trigger an immediate test sample, or auto-schedule a 1-minute test task to see the arrival notification, loud chime sound, and vibration trigger on the clock.
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn-ghost-sm" style="font-size: 11.5px; padding: 6px 12px; font-weight: 700;" onclick="PlanoraNotify.testNotificationSample()">
+            ▶ Play Chime Sample
+          </button>
+          <button type="button" class="btn-primary" style="font-size: 11.5px; padding: 6px 14px;" onclick="PlanoraNotify.createOneMinuteTestTask(); PlanoraNotify.closeSettingsModal();">
+            ⏰ Create 1-Min Test Task
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding: 14px 24px; display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" class="btn-ghost-sm" onclick="PlanoraNotify.closeSettingsModal()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="PlanoraNotify.saveSettingsFromModal()">Save Preferences</button>
+    </div>
+  </div>
+</div>
+
+<!-- Application Logic Engine -->
+<script src="app.js"></script>
+</body>
+</html>

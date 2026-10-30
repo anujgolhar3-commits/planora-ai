@@ -1,0 +1,16 @@
+{
+  "name": "planora-ai",
+  "version": "2.4.0",
+  "description": "Planora AI · Circadian Schedule Intelligence & AI Agent",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test_auth_suite.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Anuj Golhar",
+  "license": "ISC"
+}
+
