@@ -117,20 +117,60 @@ function clearCookie(res, name, path = '/') {
   setCookie(res, name, '', { path, maxAge: 0 });
 }
 
-function getSessionFromReq(req) {
-  const cookies = parseCookies(req);
-  const sessionId = cookies['planora_session'];
-  if (!sessionId) return null;
-  const sess = global._planoraSessions.get(sessionId);
-  if (!sess) return null;
+function createSessionToken(sessionObj) {
+  const secret = process.env.SESSION_SECRET || 'planora_secure_random_session_key_production_2026';
+  const data = Buffer.from(JSON.stringify(sessionObj)).toString('base64url');
+  const signature = crypto.createHmac('sha256', secret).update(data).digest('base64url');
+  return `${data}.${signature}`;
+}
 
-  // Session timeout: 30 days
-  const maxAgeMs = 30 * 24 * 60 * 60 * 1000;
-  if (Date.now() - sess.createdAt > maxAgeMs) {
-    global._planoraSessions.delete(sessionId);
+function verifySessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [data, signature] = parts;
+  const secret = process.env.SESSION_SECRET || 'planora_secure_random_session_key_production_2026';
+  const expectedSig = crypto.createHmac('sha256', secret).update(data).digest('base64url');
+  if (signature !== expectedSig) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+    const maxAgeMs = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - payload.createdAt > maxAgeMs) {
+      return null;
+    }
+    return payload;
+  } catch (_) {
     return null;
   }
-  return sess;
+}
+
+function getSessionFromReq(req) {
+  const cookies = parseCookies(req);
+  const sessionToken = cookies['planora_session'];
+  if (!sessionToken) return null;
+
+  // 1. In-memory session check (local dev and tests)
+  if (global._planoraSessions && global._planoraSessions.has(sessionToken)) {
+    const sess = global._planoraSessions.get(sessionToken);
+    const maxAgeMs = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - sess.createdAt > maxAgeMs) {
+      global._planoraSessions.delete(sessionToken);
+      return null;
+    }
+    return sess;
+  }
+
+  // 2. Stateless signed session verification (vital for Vercel serverless multi-instance)
+  const verified = verifySessionToken(sessionToken);
+  if (verified && verified.user) {
+    if (global._planoraSessions) {
+      global._planoraSessions.set(sessionToken, verified);
+    }
+    return verified;
+  }
+
+  return null;
 }
 
 function isGoogleConfigured() {
@@ -420,6 +460,54 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ==============================================================================
+  // 1b. DEMO / INSTANT ACCESS ENDPOINT (GET /auth/demo)
+  // ==============================================================================
+  if (req.method === 'GET' && pathname === '/auth/demo') {
+    const sessionId = 'pln_sess_demo_' + crypto.randomBytes(16).toString('hex');
+    const demoUser = {
+      id: 'demo_' + Date.now(),
+      name: 'Planora Architect',
+      email: 'guest@planora.ai',
+      picture: '',
+      avatar: 'PA',
+      provider: 'demo',
+      verified: true,
+      calendarGranted: true,
+      calendarScopes: ['calendar.events', 'calendar.readonly'],
+      authTime: new Date().toISOString(),
+      role: 'Workspace Director'
+    };
+
+    const sessionObj = {
+      id: sessionId,
+      user: demoUser,
+      tokens: {
+        access_token: 'demo_token',
+        refresh_token: null,
+        expires_at: Date.now() + (30 * 24 * 3600 * 1000),
+        scope: 'calendar.events calendar.readonly'
+      },
+      createdAt: Date.now()
+    };
+
+    global._planoraSessions.set(sessionId, sessionObj);
+    const sessionToken = createSessionToken(sessionObj);
+    global._planoraSessions.set(sessionToken, sessionObj);
+
+    const isHttps = req.headers['x-forwarded-proto'] === 'https' || (req.connection && req.connection.encrypted);
+    setCookie(res, 'planora_session', sessionToken, {
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
+      secure: isHttps,
+      sameSite: 'Lax'
+    });
+
+    res.writeHead(302, { 'Location': '/index.html' });
+    res.end();
+    return;
+  }
+
+  // ==============================================================================
   // 2. GOOGLE OAUTH 2.0 CALLBACK ENDPOINT (GET /auth/google/callback)
   // ==============================================================================
   if (req.method === 'GET' && pathname === '/auth/google/callback') {
@@ -540,7 +628,7 @@ const server = http.createServer(async (req, res) => {
         role: 'Workspace Director'
       };
 
-      global._planoraSessions.set(sessionId, {
+      const sessionObj = {
         id: sessionId,
         user: user,
         tokens: {
@@ -550,12 +638,22 @@ const server = http.createServer(async (req, res) => {
           scope: grantedScopes
         },
         createdAt: Date.now()
-      });
+      };
+
+      global._planoraSessions.set(sessionId, sessionObj);
+
+      // Create signed session token for stateless serverless environments (Vercel)
+      const sessionToken = createSessionToken(sessionObj);
+      global._planoraSessions.set(sessionToken, sessionObj);
+
+      const isHttps = req.headers['x-forwarded-proto'] === 'https' || (req.connection && req.connection.encrypted);
 
       // Set secure HTTP-only session cookie (30 days)
-      setCookie(res, 'planora_session', sessionId, {
+      setCookie(res, 'planora_session', sessionToken, {
         maxAge: 30 * 24 * 60 * 60,
-        path: '/'
+        path: '/',
+        secure: isHttps,
+        sameSite: 'Lax'
       });
       clearCookie(res, 'oauth_state');
 

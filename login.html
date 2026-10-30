@@ -391,6 +391,33 @@
       display: none;
     }
 
+    .btn-demo {
+      width: 100%;
+      height: 44px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1.5px solid var(--border-muted);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      box-shadow: 2px 2px 0px var(--border-muted);
+    }
+
+    .btn-demo:hover {
+      border-color: var(--text-primary);
+      background: var(--bg-subtle);
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0px var(--border-subtle);
+    }
+
     @media (max-width: 480px) {
       body {
         padding: 16px 10px;
@@ -462,6 +489,18 @@
       </svg>
       <div class="spinner" id="btnSpinner"></div>
       <span id="btnText">Continue with Google</span>
+    </a>
+
+    <!-- Divider -->
+    <div style="display: flex; align-items: center; gap: 10px; margin: 14px 0;">
+      <div style="flex: 1; height: 1px; background: var(--border-muted);"></div>
+      <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">or</span>
+      <div style="flex: 1; height: 1px; background: var(--border-muted);"></div>
+    </div>
+
+    <!-- Instant Access / Demo Mode Button -->
+    <a href="/auth/demo" class="btn-demo" id="btnDemoLogin">
+      <span>Continue in Demo Mode (Instant Access)</span>
     </a>
 
     <!-- Mandatory Permission Notice -->
