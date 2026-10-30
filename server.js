@@ -40,6 +40,18 @@ loadEnv();
 const PORT = parseInt(process.env.PORT || '5500', 10);
 const PUBLIC_DIR = __dirname;
 
+// Explicit asset references for Vercel NFT bundler
+const STATIC_ASSETS = [
+  path.join(__dirname, 'styles.css'),
+  path.join(__dirname, 'app.js'),
+  path.join(__dirname, 'index.html'),
+  path.join(__dirname, 'login.html'),
+  path.join(__dirname, 'dashboard.html'),
+  path.join(__dirname, 'privacy.html'),
+  path.join(__dirname, 'terms.html'),
+  path.join(__dirname, 'notification_chime.wav')
+];
+
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${PORT}/auth/google/callback`;
@@ -1187,6 +1199,13 @@ const server = http.createServer(async (req, res) => {
 
   let safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
   let filePath = path.join(PUBLIC_DIR, safePath);
+
+  if (!fs.existsSync(filePath)) {
+    const cwdPath = path.join(process.cwd(), safePath);
+    if (fs.existsSync(cwdPath)) {
+      filePath = cwdPath;
+    }
+  }
 
   // Clean URL resolution (e.g. /login -> /login.html)
   if (!fs.existsSync(filePath) && fs.existsSync(filePath + '.html')) {
