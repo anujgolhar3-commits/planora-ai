@@ -4890,32 +4890,52 @@ input:checked + .toggle-slider:before {
 }
 
 .weekly-todo-checkbox {
-  width: 18px;
-  height: 18px;
+  appearance: none;
+  -webkit-appearance: none;
   border: 1.5px solid var(--border-subtle);
   border-radius: 4px;
   background: var(--bg-card);
-  display: flex;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text-primary);
   cursor: pointer;
   flex-shrink: 0;
-  margin-top: 2px;
-  transition: var(--transition-fast);
+  margin-top: 1px;
+  padding: 0;
+  outline: none;
+  position: relative;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: all var(--transition-fast);
+}
+
+.weekly-todo-checkbox::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  left: -8px;
+  right: -8px;
 }
 
 .weekly-todo-checkbox:hover {
   border-color: var(--text-primary);
-  background: var(--accent-glow);
+  background: var(--bg-subtle);
 }
 
+.weekly-todo-checkbox.is-checked,
 .weekly-todo-card.is-completed .weekly-todo-checkbox {
-  background: var(--text-primary);
-  color: var(--text-inverse);
-  border-color: var(--text-primary);
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  border-color: var(--text-primary) !important;
 }
 
 .weekly-todo-content {

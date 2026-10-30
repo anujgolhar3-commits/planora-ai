@@ -3063,8 +3063,10 @@ const PlanoraUI = {
   },
 
   toggleWeeklyTaskStatus(id) {
+    if (!id) return;
+    const targetId = String(id).trim();
     const events = PlanoraStore.getEvents();
-    const idx = events.findIndex(e => String(e.id) === String(id));
+    const idx = events.findIndex(e => String(e.id).trim() === targetId);
     if (idx !== -1) {
       const ev = events[idx];
       const isCurrentlyDone = ev.status === 'completed' || ev.completed === true;
@@ -3093,11 +3095,30 @@ const PlanoraUI = {
 
     // Fallback: check daily tasks backlog
     const dailyTasks = PlanoraStore.getDailyTasks();
-    const dIdx = dailyTasks.findIndex(t => String(t.id) === String(id));
+    const dIdx = dailyTasks.findIndex(t => String(t.id).trim() === targetId);
     if (dIdx !== -1) {
-      PlanoraStore.toggleDailyTask(id);
+      PlanoraStore.toggleDailyTask(targetId);
       this.playCheckSound();
       this.renderDailyTasks();
+      this.renderCalendarMatrix();
+      return;
+    }
+
+    // Secondary fallback: search by title if id somehow mismatched
+    const byTitleIdx = events.findIndex(e => e.title && e.title.trim().toLowerCase() === targetId.toLowerCase());
+    if (byTitleIdx !== -1) {
+      const ev = events[byTitleIdx];
+      const isCurrentlyDone = ev.status === 'completed' || ev.completed === true;
+      const newStatus = isCurrentlyDone ? 'planned' : 'completed';
+      ev.status = newStatus;
+      ev.completed = (newStatus === 'completed');
+      if (newStatus === 'completed') {
+        this.playCheckSound();
+        this.showToast(`Completed "${ev.title}"! ✓`);
+      } else {
+        this.showToast(`Marked "${ev.title}" as planned`);
+      }
+      PlanoraStore.saveEvents(events);
       this.renderCalendarMatrix();
     }
   },
@@ -3113,7 +3134,7 @@ const PlanoraUI = {
   },
 
   handleWeeklyTaskDragStart(e, id) {
-    if (e.target && (e.target.closest('.weekly-todo-checkbox') || e.target.closest('.weekly-todo-actions'))) {
+    if (e.target && (e.target.closest('.weekly-todo-checkbox') || e.target.closest('.weekly-todo-actions') || e.target.closest('button'))) {
       e.preventDefault();
       return;
     }
@@ -3346,15 +3367,18 @@ const PlanoraUI = {
              draggable="true"
              data-task-id="${task.id}"
              ondragstart="PlanoraUI.handleWeeklyTaskDragStart(event, '${task.id}')">
-          <div class="weekly-todo-checkbox ${isDone ? 'is-checked' : ''}" 
+          <button type="button"
+               class="weekly-todo-checkbox ${isDone ? 'is-checked' : ''}" 
                draggable="false"
+               data-task-id="${task.id}"
+               onpointerdown="event.stopPropagation();"
                onmousedown="event.stopPropagation();"
                onclick="event.stopPropagation(); PlanoraUI.toggleWeeklyTaskStatus('${task.id}')" 
                title="${isDone ? 'Mark as Pending' : 'Mark as Completed'}"
                role="checkbox"
                aria-checked="${isDone ? 'true' : 'false'}">
             ${isDone ? '✓' : ''}
-          </div>
+          </button>
           <div class="weekly-todo-content" onclick="PlanoraUI.openEditModal('${task.id}')">
             <div class="weekly-todo-top-row">
               <span class="weekly-todo-title ${isDone ? 'done-text' : ''}">${this.escapeHtml(task.title)}</span>
@@ -3366,8 +3390,8 @@ const PlanoraUI = {
             </div>
           </div>
           <div class="weekly-todo-actions">
-            <button class="btn-icon-sm" onclick="event.stopPropagation(); PlanoraUI.openEditModal('${task.id}')" title="Edit Task">✎</button>
-            <button class="btn-icon-sm" onclick="event.stopPropagation(); PlanoraUI.deleteWeeklyTodo('${task.id}')" title="Delete Task">✕</button>
+            <button type="button" class="btn-icon-sm" onclick="event.stopPropagation(); PlanoraUI.openEditModal('${task.id}')" title="Edit Task">✎</button>
+            <button type="button" class="btn-icon-sm" onclick="event.stopPropagation(); PlanoraUI.deleteWeeklyTodo('${task.id}')" title="Delete Task">✕</button>
           </div>
         </div>
       `;
@@ -5911,6 +5935,19 @@ const PlanoraUI = {
       }
     });
 
+    // Delegated click handler for weekly todo checkboxes & task buttons
+    document.addEventListener('click', (e) => {
+      const checkBtn = e.target.closest('.weekly-todo-checkbox');
+      if (checkBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const taskId = checkBtn.getAttribute('data-task-id');
+        if (taskId) {
+          PlanoraUI.toggleWeeklyTaskStatus(taskId);
+        }
+      }
+    });
+
     // Theme toggle
     const themeBtn = document.getElementById('themeToggleBtn');
     if (themeBtn) {
@@ -5929,7 +5966,13 @@ const PlanoraUI = {
   }
 };
 
-// Auto-boot on DOM ready
+// Auto-boot on DOM ready & expose globally
+if (typeof window !== 'undefined') {
+  window.PlanoraUI = PlanoraUI;
+  window.PlanoraStore = PlanoraStore;
+  window.PlanoraAI = PlanoraAI;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   PlanoraUI.init();
 });
